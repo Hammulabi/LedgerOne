@@ -5,11 +5,13 @@ Contient tous les endpoints CRUD pour les transactions avec filtres & pagination
 
 from typing import List, Optional
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status, Query #Pour création de routeur, injection dépendances, lever erreurs http & codes http (200, 404, ...)
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
-from app.api.dependencies import get_db #Pour fournir la session DB
-from app.services import ( #Fournit la logique métier pour transactions
+from app.api.dependencies import get_db
+from app.models.transaction import Transaction
+from app.services import (
     get_all_transactions,
     get_transaction_by_id,
     create_transaction,
@@ -18,145 +20,115 @@ from app.services import ( #Fournit la logique métier pour transactions
     get_transactions_by_period,
     search_transactions
 )
-from app.schemas import TransactionCreate, TransactionUpdate, TransactionResponse #Pour validation des données
+from app.schemas import TransactionCreate, TransactionUpdate, TransactionResponse
 
-router = APIRouter( #Créer le router pour les transactions
-    prefix="/transactions", #Toutes les routes auront /transactions au début
-    tags=["Transactions"] #Groupe les endpoints dans la doc auto
-)
+router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
-#Endpoints : Lister TOUTES les transactions avec filtres et pagination
 @router.get("/", response_model=List[TransactionResponse], status_code=status.HTTP_200_OK)
 def list_transactions(
-    skip:int = Query(0, ge=0, description="Nombre de résultats à ignorer (pagination)"),
-    limit:int = Query(100, ge=1, description="Nombre max de résultats à retourner"),
-    from_date: Optional[date] = Query(None, description="Date de début (YYYY-MM-DD)"),
-    to_date: Optional[date] = Query(None, description="Date de fin (YYYY-MM-DD)"),
-    category_id: Optional[int] = Query(None, ge=1, description="Filtrer par ID de catégorie"),
-    search: Optional[str] = Query(None, min_length=1, description="Rechercher dans les descriptions"),
+    skip:int = Query(0, ge=0),
+    limit:int = Query(100, ge=1, le=500),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    category_id: Optional[int] = Query(None, ge=1),
+    search: Optional[str] = Query(None, min_length=1),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
     db: Session = Depends(get_db)
-    #Avec query on peut avoir ce genre d'url par exemple : GET /api/transactions/?skip=10&limit=50&from_date=2025-01-01&to_date=2025-01-31&category_id=3
 ):
-    '''
-    Liste les transactions avec filtres optionnels et pagination
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise HTTPException(status_code=400, detail="min_amount doit être <= max_amount")
 
-     Paramètres de pagination:
-    - skip: nombre de résultats à sauter (défaut: 0)
-    - limit: nombre max de résultats (100)
-    
-    Filtres optionnels:
-    - from_date: date de début (incluse)
-    - to_date: date de fin (incluse)
-    - category_id: filtrer par catégorie
-    - search: recherche textuelle dans les descriptions
-    
-    Retourne List[TransactionResponse]: liste filtrée de transactions
-    '''
-    #Cas 1: Recherche textuelle (prioritaire)
+    query = db.query(Transaction)
+
     if search:
-        return search_transactions(db, search, skip, limit)
-    
-    #Cas 2: Filtrage par période
-    if from_date or to_date:
-        #Gérer les dates par défaut si une seule est fournie
-        if from_date and not to_date:
-            to_date = date.today() #Si on précise juste la date de début, la date de fin est la date de aujourd'hui
-        if to_date and not from_date:
-            from_date = date(1900, 1, 1) #Si on a que la date de fin, on prend toutes les transactions avant cette date
+        query = query.filter(Transaction.description.ilike(f"%{search}%"))
 
-        #Validation: from_date <= to_date
-        if from_date > to_date:
-            raise HTTPException(
-                status_code = status.HTTP_400_BAD_REQUEST,
-                detail="La date de début doit être antérieure ou égale à la date de fin"
-            )
-        return get_transactions_by_period(db, from_date, to_date, category_id, skip, limit)
-        
-    #Cas 3: Filtrage simple par catégorie (sans période)
+    if from_date:
+        query = query.filter(Transaction.date >= from_date)
+    if to_date:
+        query = query.filter(Transaction.date <= to_date)
     if category_id:
-        return get_transactions_by_period(
-            db,
-            date(1900, 1, 1),
-            date.today(),
-            category_id,
-            skip,
-            limit
-        )
-    
-    #Cas 4: Pas de filtre, retourner toutes les transactions
-    return get_all_transactions(db, skip, limit)
+        query = query.filter(Transaction.category_id == category_id)
+    if min_amount is not None:
+        query = query.filter(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        query = query.filter(Transaction.amount <= max_amount)
 
-#Endpoint : Récupérer UNE transaction
+    return query.order_by(Transaction.date.desc(), Transaction.id.desc()).offset(skip).limit(limit).all()
+
+@router.get('/search-advanced', status_code=200)
+def search_advanced(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    category_id: Optional[int] = Query(None, ge=1),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    db: Session = Depends(get_db),
+):
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise HTTPException(status_code=400, detail="min_amount doit être <= max_amount")
+
+    query = db.query(Transaction)
+    if search:
+        query = query.filter(Transaction.description.ilike(f"%{search}%"))
+    if from_date:
+        query = query.filter(Transaction.date >= from_date)
+    if to_date:
+        query = query.filter(Transaction.date <= to_date)
+    if category_id:
+        query = query.filter(Transaction.category_id == category_id)
+    if min_amount is not None:
+        query = query.filter(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        query = query.filter(Transaction.amount <= max_amount)
+
+    total_items = query.count()
+    total_pages = max((total_items + page_size - 1) // page_size, 1)
+    page = min(page, total_pages)
+    items = query.order_by(Transaction.date.desc(), Transaction.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    return {
+        "items": items,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1,
+        },
+    }
+
 @router.get("/{transaction_id}", response_model=TransactionResponse, status_code=status.HTTP_200_OK)
 def get_one_transaction(transaction_id:int, db:Session = Depends(get_db)):
-    '''
-    Récupère une transaction par son ID
-    Retourne TransactionResponse: transaction demandée avec infos catégorie
-    Si transaction existe pas -> Erreur 404
-    '''
     transaction = get_transaction_by_id(db, transaction_id)
-    if not transaction: #Si pas trouvé
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, #On renvoi erreur 404
-            detail=f"Transaction avec l'ID {transaction_id} introuvable"
-        )
+    if not transaction:
+        raise HTTPException(status_code=404, detail=f"Transaction avec l'ID {transaction_id} introuvable")
     return transaction
 
-#Endpoint : CREER une nouvelle transaction
 @router.post("/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def create_new_transaction(transaction_data:TransactionCreate, db:Session=Depends(get_db)):
-    '''
-    Créer une nouvelle transaction
-    category_id doit exister (si fourni), date ne peut pas être dans le futur, amount ne peut pas être exactement 0
-    Retourne TransactionResponse = transaction créée avec son ID, erreur 400 si données invalides
-    '''
     try:
-        new_transaction = create_transaction(db, transaction_data)
-        return new_transaction
+        return create_transaction(db, transaction_data)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e))
 
-#Endpoint : MODIFIER une transaction
 @router.patch("/{transaction_id}", response_model=TransactionResponse, status_code=status.HTTP_200_OK)
 def update_existing_transaction(transaction_id:int,transaction_data: TransactionUpdate,db:Session = Depends(get_db)):
-    '''
-    Modifie une transaction existante (modification partielle)
-    category_id doit exister (si fourni), date ne peut pas être dans le futur, amount ne peut pas être exactement 0
-    Retourne TransactionResponse = transaction modifiée
-    404 si transaction n'existe pas, 400 si données invalides
-    '''
     try:
         updated_transaction = update_transaction(db, transaction_id, transaction_data)
-        if not updated_transaction: #Si pas trouvé alors 404
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Transaction avec l'ID {transaction_id} introuvable"
-            )
+        if not updated_transaction:
+            raise HTTPException(status_code=404, detail=f"Transaction avec l'ID {transaction_id} introuvable")
         return updated_transaction
-    
-    except ValueError as e: #Si l'erreur ne vient pas du fait que la transaction n'existe pas, alors 400
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-#Endpoint : SUPPRIMER une transaction
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_existing_transaction(transaction_id:int, db:Session = Depends(get_db)):
-    '''
-    Supprime une transaction
-    Retourne None (204 No Content)
-    Erreur 404 si transaction n'existe pas
-    '''
     success = delete_transaction(db, transaction_id)
-
-    if not success: #Si ça a pas marché, c'est qu'on a pas trouvé la transaction à supprimer
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transaction avec l'ID {transaction_id} introuvable"
-        )
-    #Pas de return pour un 204 No Content
-    
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Transaction avec l'ID {transaction_id} introuvable")

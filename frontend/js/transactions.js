@@ -20,6 +20,11 @@ let currentSort = 'date-desc';
 let currentPage = 1;
 let itemsPerPage = 20;
 let editingTransactionId = null;
+let minAmount = '';
+let maxAmount = '';
+let fromDate = '';
+let toDate = '';
+let paginationMeta = null;
 
 // Éléments DOM
 const transactionsList = document.getElementById('transactions-list');
@@ -37,6 +42,10 @@ const selectedTags = document.getElementById('selected-tags');
 const transactionFormContainer = document.getElementById('transaction-form-container');
 const transactionForm = document.getElementById('transaction-form');
 const formTitle = document.getElementById('form-title');
+const minAmountInput = document.getElementById('min-amount');
+const maxAmountInput = document.getElementById('max-amount');
+const fromDateInput = document.getElementById('from-date');
+const toDateInput = document.getElementById('to-date');
 
 // ============================================
 //              INITIALISATION
@@ -86,6 +95,18 @@ function setupEventListeners() {
         }
     });
 
+    [minAmountInput, maxAmountInput, fromDateInput, toDateInput].forEach(input => {
+        if (!input) return;
+        input.addEventListener('input', () => {
+            minAmount = minAmountInput?.value || '';
+            maxAmount = maxAmountInput?.value || '';
+            fromDate = fromDateInput?.value || '';
+            toDate = toDateInput?.value || '';
+            currentPage = 1;
+            loadData();
+        });
+    });
+
     // Formulaire
     transactionForm.addEventListener('submit', handleFormSubmit);
 
@@ -99,24 +120,27 @@ function setupEventListeners() {
 async function loadData() {
     try {
         showLoading();
-
-        // Charger catégories
         allCategories = await getAllCategories();
-
-        // Charger TOUTES les transactions
-        allTransactions = await getAllTransactions({ limit: 10000 });
-
-        // Initialiser multiselect
+        const result = await searchTransactionsAdvanced({
+            page: currentPage,
+            page_size: itemsPerPage,
+            search: searchQuery,
+            category_id: selectedCategoryIds[0] || '',
+            from_date: fromDate,
+            to_date: toDate,
+            min_amount: minAmount,
+            max_amount: maxAmount,
+        });
+        allTransactions = result.items;
+        filteredTransactions = [...allTransactions];
+        paginationMeta = result.pagination;
         renderCategoryOptions();
-
-        // Afficher
-        filterAndRender();
-
+        renderTransactions();
+        updateCounter();
         hideLoading();
     } catch (error) {
         hideLoading();
         showError(`Erreur lors du chargement: ${error.message}`);
-        console.error('Erreur:', error);
     }
 }
 
@@ -230,26 +254,8 @@ function removeTag(categoryId) {
 //              FILTRAGE & TRI
 // ============================================
 function filterAndRender() {
-    // Copie
     filteredTransactions = [...allTransactions];
-
-    // Filtre recherche
-    if (searchQuery) {
-        filteredTransactions = filteredTransactions.filter(tx =>
-            tx.description.toLowerCase().includes(searchQuery)
-        );
-    }
-
-    // Filtre catégories
-    if (selectedCategoryIds.length > 0) {
-        filteredTransactions = filteredTransactions.filter(tx =>
-            selectedCategoryIds.includes(tx.category_id)
-        );
-    }
-
-    // Tri
     const [column, direction] = currentSort.split('-');
-
     filteredTransactions.sort((a, b) => {
         let valA, valB;
 
@@ -294,14 +300,8 @@ function renderTransactions() {
         return;
     }
 
-    // Pagination sur les transactions individuelles
-    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
-
-    // Grouper par date (uniquement les transactions paginées)
-    const grouped = groupByDate(paginatedTransactions);
+    const totalPages = paginationMeta?.total_pages || 1;
+    const grouped = groupByDate(filteredTransactions);
     const keys = Object.keys(grouped);
 
     // Afficher
@@ -321,13 +321,13 @@ function renderTransactions() {
                 const color = tx.category.color || '#505050';
                 categoryHTML = `
                     <span class="category-dot" style="background-color: ${color}; box-shadow: 0 0 12px ${color};"></span>
-                    <span class="transaction-category">${tx.category.name}</span>
+                    <span class="transaction-category">${sanitizeText(tx.category.name)}</span>
                 `;
             }
 
             item.innerHTML = `
                 <div class="transaction-bar"></div>
-                <div class="transaction-desc">${tx.description}</div>
+                <div class="transaction-desc">${sanitizeText(tx.description)}</div>
                 <div class="transaction-category-cell">${categoryHTML}</div>
                 <div class="transaction-amount">${formatCurrency(tx.amount)}</div>
                 <button class="transaction-menu-btn" onclick="showTransactionMenu(event, ${tx.id})">⋮</button>
@@ -379,7 +379,7 @@ function renderPagination(totalPages) {
     prevBtn.addEventListener('click', () => {
         if (currentPage > 1) {
             currentPage--;
-            renderTransactions();
+            loadData();
         }
     });
     paginationDiv.appendChild(prevBtn);
@@ -399,7 +399,7 @@ function renderPagination(totalPages) {
         pageBtn.textContent = i;
         pageBtn.addEventListener('click', () => {
             currentPage = i;
-            renderTransactions();
+            loadData();
         });
         paginationDiv.appendChild(pageBtn);
     }
@@ -412,7 +412,7 @@ function renderPagination(totalPages) {
     nextBtn.addEventListener('click', () => {
         if (currentPage < totalPages) {
             currentPage++;
-            renderTransactions();
+            loadData();
         }
     });
     paginationDiv.appendChild(nextBtn);
@@ -522,17 +522,17 @@ async function handleFormSubmit(e) {
 
     // Validations
     if (!description) {
-        alert('❌ La description est obligatoire');
+        showError('La description est obligatoire');
         return;
     }
 
     if (amount === 0) {
-        alert('❌ Le montant ne peut pas être 0');
+        showError('Le montant ne peut pas être 0');
         return;
     }
 
     if (new Date(date) > new Date()) {
-        alert('❌ La date ne peut pas être dans le futur');
+        showError('La date ne peut pas être dans le futur');
         return;
     }
 
@@ -632,9 +632,10 @@ function hideLoading() {
 }
 
 function showError(message) {
-    alert('❌ ' + message);
+    if (typeof showToast === 'function') showToast(message, 'error');
+    else alert('❌ ' + message);
 }
 
 function showSuccess(message) {
-    alert('✅ ' + message);
+    if (typeof showToast === 'function') showToast(message, 'success');
 }

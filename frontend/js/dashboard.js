@@ -108,6 +108,7 @@ async function initDashboard() {
         
         // Afficher les KPI avec comparaisons
         displayKPIs(currentSummary, previousSummary, settings);
+        await displayAdvancedKPIs(current, currentSummary);
         
         // Afficher les graphiques
         await displayCharts(currentSummary);
@@ -160,6 +161,38 @@ function displayKPIs(current, previous, settings) {
     ).getDate();
     const avgPerDay = current.count > 0 ? (current.count / daysInMonth).toFixed(1) : 0;
     document.getElementById('kpi-avg').textContent = avgPerDay;
+}
+
+
+async function displayAdvancedKPIs(currentPeriod, currentSummary) {
+    const annual = await getAnnualExpenses(currentPeriod.year);
+    const evolution = await getMonthlyEvolution(currentPeriod.year, currentPeriod.month);
+
+    const annualEl = document.getElementById('kpi-annual');
+    if (annualEl) annualEl.textContent = formatCurrency(annual.total || 0);
+
+    const evolutionEl = document.getElementById('kpi-evolution');
+    if (evolutionEl) {
+        const value = evolution.change_percent || 0;
+        evolutionEl.textContent = `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+        evolutionEl.classList.toggle('negative', value > 0);
+    }
+
+    const incomeInput = document.getElementById('savings-income');
+    const goalInput = document.getElementById('savings-goal');
+    const button = document.getElementById('apply-savings-goal');
+    const result = document.getElementById('savings-result');
+
+    if (button && incomeInput && goalInput && result && !button.dataset.bound) {
+        button.dataset.bound = '1';
+        button.addEventListener('click', async () => {
+            const income = Number(incomeInput.value || 0);
+            const goal = Number(goalInput.value || 0);
+            if (income <= 0) return showError('Veuillez saisir un revenu mensuel valide.');
+            const data = await getSavingsGoal(currentPeriod.year, currentPeriod.month, income, goal);
+            result.textContent = `Épargne actuelle: ${formatCurrency(data.current_savings)} • Objectif atteint: ${data.completion_rate}%`;
+        });
+    }
 }
 
 /**
@@ -384,7 +417,7 @@ function displayTop5Table(summary) {
                 <td>
                     <div class="category-cell">
                         <span class="category-dot" style="background-color: ${color}; box-shadow: 0 0 12px ${color};"></span>
-                        <span>${categoryName}</span>
+                        <span>${sanitizeText(categoryName)}</span>
                     </div>
                 </td>
                 <td class="percentage-cell">${data.percentage.toFixed(0)}%</td>
@@ -430,7 +463,7 @@ function showError(message) {
     
     const error = document.createElement('div');
     error.className = 'error-message';
-    error.innerHTML = `<strong>⚠ Erreur</strong><br>${message}`;
+    error.innerHTML = `<strong>⚠ Erreur</strong><br>${sanitizeText(message)}`;
     
     main.insertBefore(error, main.firstChild);
     

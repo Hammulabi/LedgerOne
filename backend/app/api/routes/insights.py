@@ -2,96 +2,84 @@
 Router Insights - Endpoints pour les statistiques et analyses
 Contient tous les endpoints pour récupérer agrégations et analyses de dépenses
 '''
-from typing import Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query #Pour création routeurs, injection dépendances, erreurs http & code http (200, 404, ...)
+from typing import Dict, Any, List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import extract, func
 
-from app.api.dependencies import get_db #Pour fournir la session DB
+from app.api.dependencies import get_db
+from app.models.transaction import Transaction
 from app.services import (get_monthly_total, get_category_breakdown, get_monthly_summary)
 
-router = APIRouter( #Créer le router pour les statistiques
-    prefix="/insights", #Toutes les routes auront /insights au début
-    tags=["Insights"] #Groupe les endpoint dans la doc auto
-)
+router = APIRouter(prefix="/insights", tags=["Insights"])
 
-#Endpoint : Résumé complet du mois
 @router.get("/summary", response_model=Dict[str, Any],status_code=status.HTTP_200_OK)
-def get_month_summary(
-    year:int = Query(..., ge=2000, le=2100, description="Annee (ex:2025)"),
-    month:int = Query(..., ge=1, le=12, description="Mois (1-12)"),
-    db:Session = Depends(get_db)
-): 
-    '''
-    Génère résumé complet des dépenses d'un mois donné
-    Paramètres obligatoires: année & mois
-    Retourne dictionnaire contenant:
-    - total : montant total des dépenses
-    - count : nombre de transactions
-    - average : dépense moyenne par transactions
-    - by_category: répartition détaillée par catégorie (montant, %, count)
-    Exemple: GET /api/insights/summary?year=2025&month=1
-    '''
+def get_month_summary(year:int = Query(..., ge=2000, le=2100), month:int = Query(..., ge=1, le=12), db:Session = Depends(get_db)):
     try:
-        summary = get_monthly_summary(db, year, month)
-        return summary
+        return get_monthly_summary(db, year, month)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, #500 car l'erreur viens du serveur / calcul SQL, pas de l'utilisateur
-            detail=f"Erreur lors du calcul du résumé: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul du résumé: {str(e)}")
 
-#Endpoint : Total des dépenses du mois
 @router.get("/monthly-total", response_model=Dict[str, float], status_code=status.HTTP_200_OK)
-def get_month_total(
-    year:int = Query(..., ge=2000, le=2100, description="Année (ex:2025)"),
-    month:int = Query(..., ge=1, le=12, description="Mois (1-12)"),
-    category_id:int = Query(None, ge=1, description="Filtrer par catégorie (optionnel)"),
-    db:Session = Depends(get_db)
-):
-    '''
-    Calcule total des dépenses pour un mois donnée
-    Paramètres obligatoires: year & mois
-    Optionnels: category_id:filtrer par catégorie spécifique
-    Retourne un dictionnaire contenant total: montant total en float
-    Exemple: GET /api/insights/monthly-total?year=2025&month=1
-    Exemple avec filtre: GET /api/insights/monthly-total?year=2025&month=1&category_id=3
-    '''
+def get_month_total(year:int = Query(..., ge=2000, le=2100), month:int = Query(..., ge=1, le=12), category_id:int = Query(None, ge=1), db:Session = Depends(get_db)):
     try:
-        total = get_monthly_total(db, year, month, category_id)
-        return {"total": total}
+        return {"total": get_monthly_total(db, year, month, category_id)}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, #500 car l'erreur vient du serveur pas de l'utilisateur
-            detail=f"Erreur lors du calcul du total: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul du total: {str(e)}")
 
-#Endpoint : Répartition détaillée par catégorie
 @router.get("/category-breakdown", response_model=Dict[str, Dict[str, Any]], status_code = status.HTTP_200_OK)
-def get_breakdown_by_category(
-    year:int = Query(..., ge=2000, le=2100, description="Année (ex:2025)"),
-    month:int = Query(..., ge=1, le=12, description="Mois (1-12)"),
-    db:Session = Depends(get_db)
-):
-    '''
-    Calcule la répartition détaillée des dépenses PAR CATEGORIE
-    Paramètre obligatoires : année & mois
-    Retourne dictionnaire o`u chaque clé est un nom de catégorie et la valeur contient:
-    - total : montant total pour cette catégorie
-    - percentage : pourcentage du total global
-    - count : nombre de transactions dans cette categorie
-    Exemple : GET /api/insights/category-breakdown?year=2025&month=1
-    Exemple Réponse:
-    {
-        "Alimentation": {"total": 432.50, "percentage": 45.2, "count": 15},
-        "Transport": {"total": 87.30, "percentage": 9.1, "count": 8}
-    }
-    '''
+def get_breakdown_by_category(year:int = Query(..., ge=2000, le=2100), month:int = Query(..., ge=1, le=12), db:Session = Depends(get_db)):
     try:
-        breakdown = get_category_breakdown(db, year, month)
-        return breakdown
+        return get_category_breakdown(db, year, month)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, #500 car erreur vient du serveur pas de l'utilisateur
-            detail=f"Erreur lors du calcul de la répartition: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul de la répartition: {str(e)}")
 
+@router.get('/annual-expenses', response_model=Dict[str, Any], status_code=200)
+def annual_expenses(year: int = Query(..., ge=2000, le=2100), db: Session = Depends(get_db)):
+    monthly_rows = db.query(
+        extract('month', Transaction.date).label('month'),
+        func.sum(Transaction.amount).label('total')
+    ).filter(extract('year', Transaction.date) == year).group_by(extract('month', Transaction.date)).all()
+
+    month_totals = {int(m): float(t or 0) for m, t in monthly_rows}
+    months = [{"month": m, "total": round(month_totals.get(m, 0.0), 2)} for m in range(1, 13)]
+    return {"year": year, "total": round(sum(x["total"] for x in months), 2), "months": months}
+
+@router.get('/monthly-evolution', response_model=Dict[str, Any], status_code=200)
+def monthly_evolution(year: int = Query(..., ge=2000, le=2100), month: int = Query(..., ge=1, le=12), db: Session = Depends(get_db)):
+    current_total = get_monthly_total(db, year, month)
+    prev_year = year if month > 1 else year - 1
+    prev_month = month - 1 if month > 1 else 12
+    previous_total = get_monthly_total(db, prev_year, prev_month)
+
+    if previous_total == 0:
+        change_percent = 100.0 if current_total > 0 else 0.0
+    else:
+        change_percent = ((current_total - previous_total) / previous_total) * 100
+
+    return {
+        "current_total": round(current_total, 2),
+        "previous_total": round(previous_total, 2),
+        "change_percent": round(change_percent, 2),
+        "is_increase": change_percent > 0,
+    }
+
+@router.get('/savings-goal', response_model=Dict[str, Any], status_code=200)
+def savings_goal(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    income: float = Query(..., gt=0),
+    goal: float = Query(..., ge=0),
+    db: Session = Depends(get_db),
+):
+    expenses = get_monthly_total(db, year, month)
+    current_savings = max(income - expenses, 0)
+    completion_rate = 100.0 if goal == 0 else min((current_savings / goal) * 100, 100.0)
+    return {
+        "income": round(income, 2),
+        "goal": round(goal, 2),
+        "expenses": round(expenses, 2),
+        "current_savings": round(current_savings, 2),
+        "completion_rate": round(completion_rate, 2),
+        "remaining": round(max(goal - current_savings, 0), 2),
+    }

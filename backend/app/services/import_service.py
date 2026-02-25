@@ -3,46 +3,18 @@ Service d'import CSV - Gestion de l'import en masse de transactions
 Permet de parser, valider et importer des transactions depuis un fichier CSV
 '''
 
-import csv #Pour lire/écrire CSV
-import io #Input/Output, pour simuler un ficher en mémoire
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import date, datetime #Pour manipuler dates
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError #Si contrainte SQL relevée
 
 from app.models.category import Category #Modèle Catégory
 from app.models.transaction import Transaction #Modèle Transaction
 from app.services.category_service import get_category_by_name #Fonction pour chercher catégorie selon son nom
+from app.utils.csv_parser import parse_csv_content
 
 #Constantes pour création automatique des catégories
 DEFAULT_CATEGORY_COLOR = "#818cf8" #Couleur par défaut pour les catégories auto-créées
 DEFAULT_CATEGORY_BUDGET = None #Pas de budget défini par défaut
-
-#Parsing du fichier CSV
-def parse_csv_file(file_content:str) -> List[Dict[str, str]]:
-    '''
-    Parse le contenu d'un fichier CSV et le transforme en liste de dictionnaires
-    Prend en paramètre le contenu brut du CSV (str), retourne liste de dictionnaires, chaque dict = une ligne du CSV
-    Format des colonnes : date, description, amount, category (optionnel)
-    Exemple de retour :
-    [
-        {"date": "2025-01-15", "description": "Courses", "amount": "45.50", "category": "Alimentation"},
-        {"date": "2025-01-16", "description": "Essence", "amount": "60.00", "category": "Transport"}
-    ]
-    '''
-    # Créer un objet StringIO pour simuler un fichier à partir du string
-    # (csv.DictReader a besoin d'un objet file-like)
-    csv_file = io.StringIO(file_content)
-
-    # DictReader lit le CSV et crée un dict pour chaque ligne
-    # Les clés du dictionnaire sont les noms des colonnes (premiere ligne du CSV)
-    reader = csv.DictReader(csv_file)
-
-    # Convertir le reader en liste de dictionnaires
-    rows = list(reader)
-
-    return rows
-
 
 #Validation des données
 def validate_row(row: Dict[str, str], line_number:int) -> Tuple[bool, Optional[str]]:
@@ -173,14 +145,14 @@ def import_transactions_from_csv(db:Session, file) -> Dict[str, Any]:
         file_content = file.decode('utf-8') #Décoder fichier en UTF-8
 
         #Etape 2 : Parser CSV en liste de dictionnaires
-        rows = parse_csv_file(file_content)
+        rows, delimiter, parse_errors = parse_csv_content(file_content)
+        errors.extend(parse_errors)
 
-        #Vérifier que CSV n'est pas vide
         if not rows:
-            return { #On return maintenant, car si vide pas besoin de continuer davantage
+            return {
                 "inserted": 0,
                 "skipped": 0,
-                "errors": ["Le fichier CSV est vide ou mal formaté"]
+                "errors": errors or ["Le fichier CSV est vide ou mal formaté"]
             }
         
         #Etape 3 : Traiter chaque ligne du CSV
@@ -216,7 +188,8 @@ def import_transactions_from_csv(db:Session, file) -> Dict[str, Any]:
             except Exception as e:
                 #Si erreur lors de la création, on skip cette ligne
                 skipped += 1
-                errors.append(f"Ligne {index}: Erreur lors de l'import - {str(e)}")
+                row_preview = f"date={row.get('date','').strip()} | description={row.get('description','').strip()[:30]}"
+                errors.append(f"Ligne {index}: Erreur lors de l'import - {str(e)} ({row_preview})")
                 continue
 
         db.commit() #Etape 4 : Commit final de toutes les transactions valides

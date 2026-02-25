@@ -16,6 +16,7 @@
                 <h1 class="page-title">Transactions</h1>
                 <p class="page-subtitle" id="transaction-counter">- affichées / - total</p>
             </div>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
         </header>
 
         <!-- Controls Bar -->
@@ -50,6 +51,12 @@
                         </div>
                     </div>
                 </div>
+
+
+                <input type="date" id="from-date" class="form-input" style="max-width:160px;" placeholder="Du">
+                <input type="date" id="to-date" class="form-input" style="max-width:160px;" placeholder="Au">
+                <input type="number" id="min-amount" class="form-input" style="max-width:130px;" placeholder="Montant min">
+                <input type="number" id="max-amount" class="form-input" style="max-width:130px;" placeholder="Montant max">
 
                 <!-- Tags sélectionnés -->
                 <div class="selected-tags" id="selected-tags">
@@ -150,6 +157,8 @@
     </div>
 
     <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/theme.js"></script>
     <script src="js/api.js"></script>
     <script src="js/transactions.js"></script>
 </body>

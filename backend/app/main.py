@@ -1,35 +1,46 @@
-'''
-Point d'entrée principal de l'API FastAPI
-Configure l'application, les routes et les middlewares (=Interception requêtes HTTP pour vérifier/modifier requetes avant qu'elles passent à l'endpoint)
-'''
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from app.config import settings
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware #Import middleware CORS pour autoriser frontend à communiquer
-from app.config import settings #Importe config.py, qui permet par exemple de savoir sur sur quelle url lancer le serveur, et d'autres trucs
-
-#Création de l'instance FastAPI
 app = FastAPI(
-    title=settings.PROJECT_NAME, #Titre de l'API (= "LedgerOne API")
+    title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="API REST pour la gestion des dépenses personnelles"
+    description="API REST pour la gestion des dépenses personnelles",
+    debug=False,
 )
 
-#Configuration CORS (Cross-Origin Resource Sharing)
 app.add_middleware(
-    CORSMiddleware, #Autorise CORS, sinon ça bloquerait les requêtes du Frontend
-    allow_origins=settings.ALLOWED_ORIGINS, #Liste URL autorisées à communiquer avec l'API
-    allow_credentials=True, #Autorise envoi de cookies & authentifications
-    allow_methods=["*"], #Autorise toutes les méthodes HTTP (GET/POST/PATCH/DELETE/...)
-    allow_headers=["*"], #Autorise tous les headers HTTP
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Route racine (page d'accueil de l'API)
+
+def normalize_error(code: str, message: str, details=None):
+    return {"error": {"code": code, "message": message, "details": details}}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(status_code=exc.status_code, content=normalize_error("HTTP_ERROR", str(exc.detail)))
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content=normalize_error("VALIDATION_ERROR", "Paramètres invalides", exc.errors()))
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content=normalize_error("INTERNAL_ERROR", "Erreur interne du serveur"))
+
+
 @app.get("/", tags=["Root"])
 def read_root():
-    '''
-    Page d'accueil de l'API
-    Retourne un message de bienvenue et les infos de base
-    '''
     return {
         "message": "Bienvenue sur l'API LedgerOne",
         "version": settings.VERSION,
@@ -37,14 +48,10 @@ def read_root():
         "redoc": "/redoc"
     }
 
-# Route de santé (health check)
+
 @app.get("/health", tags=["Health"])
 def health_check():
-    '''
-    Endpoint de santé pour vérifier que l'API fonctionne
-    Utilisé par les outils de monitoring
-    '''
-    return {"status": "healthy"} #Normalement ça répond ça, si pas de réponse, c'est que ya un problème
+    return {"status": "healthy"}
 
 
 from app.api.routes import categories, transactions
@@ -59,12 +66,6 @@ app.include_router(insights.router, prefix=settings.API_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_PREFIX)
 app.include_router(import_csv.router, prefix=settings.API_PREFIX)
 
-# Point d'entrée pour lancement direct du fichier
 if __name__ == "__main__":
-    import uvicorn #Importe uvicorn, un serveur pour faire tourner l'app FastAPI, ASGI = Asynchrone, peut gérer plusieurs requêtes à la fois
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0", #Ecoute toutes les interfaces réseau
-        port=8000,
-        reload=True
-    )
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

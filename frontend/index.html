@@ -18,6 +18,7 @@
                 <h1 class="page-title">Dépenses Globales</h1>
                 <p class="page-subtitle">Aperçu de vos dépenses et statistiques financières</p>
             </div>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
         </header>
 
         <!-- KPI Cards -->
@@ -53,6 +54,24 @@
                     <h2 class="kpi-value" id="kpi-avg">-</h2>
                 </div>
             </div>
+                    <div class="kpi-card">
+                <div class="kpi-icon">📆</div>
+                <div class="kpi-content"><p class="kpi-label">Dépenses annuelles</p><h2 class="kpi-value" id="kpi-annual">-</h2></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">📈</div>
+                <div class="kpi-content"><p class="kpi-label">Évolution mensuelle</p><h2 class="kpi-value" id="kpi-evolution">-</h2></div>
+            </div>
+        </section>
+
+        <section class="chart-card" style="margin-bottom:1.5rem;">
+            <h3 class="chart-title">Objectif d'épargne</h3>
+            <div class="controls-left">
+                <input id="savings-income" class="form-input" type="number" placeholder="Revenu mensuel" />
+                <input id="savings-goal" class="form-input" type="number" placeholder="Objectif" />
+                <button id="apply-savings-goal" class="btn-primary">Calculer</button>
+            </div>
+            <p id="savings-result" class="page-subtitle"></p>
         </section>
 
         <!-- Charts Section -->
@@ -110,6 +129,8 @@
     </main>
 
     <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/theme.js"></script>
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>
 </body>

@@ -1,7 +1,13 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+
+from app.api.routes import alerts, categories, import_csv, insights, transactions
+from app.api.routes import settings as settings_router
 from app.config import settings
 
 app = FastAPI(
@@ -45,7 +51,7 @@ def read_root():
         "message": "Bienvenue sur l'API LedgerOne",
         "version": settings.VERSION,
         "documentation": "/docs",
-        "redoc": "/redoc"
+        "redoc": "/redoc",
     }
 
 
@@ -54,11 +60,7 @@ def health_check():
     return {"status": "healthy"}
 
 
-from app.api.routes import categories, transactions
-from app.api.routes import settings as settings_router
-from app.api.routes import insights
-from app.api.routes import alerts
-from app.api.routes import import_csv
+# Inclure tous les routeurs API sous /api
 app.include_router(categories.router, prefix=settings.API_PREFIX)
 app.include_router(transactions.router, prefix=settings.API_PREFIX)
 app.include_router(settings_router.router, prefix=settings.API_PREFIX)
@@ -66,6 +68,13 @@ app.include_router(insights.router, prefix=settings.API_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_PREFIX)
 app.include_router(import_csv.router, prefix=settings.API_PREFIX)
 
+# Optionnel: servir le frontend statique via FastAPI
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

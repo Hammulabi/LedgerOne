@@ -1,5 +1,3 @@
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
-
 function getErrorMessage(errorData, status) {
     if (errorData?.error?.message) return errorData.error.message;
     if (typeof errorData?.detail === 'string') return errorData.detail;

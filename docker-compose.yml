@@ -1,0 +1,24 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/ledgerone.db
+      - ALLOWED_ORIGINS=["*"]
+
+  frontend:
+    image: python:3.12-slim
+    working_dir: /app
+    command: sh -c "python -m http.server 8080 --directory frontend"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+    depends_on:
+      - backend

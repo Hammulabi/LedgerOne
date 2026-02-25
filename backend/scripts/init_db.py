@@ -17,8 +17,14 @@ def init_db(): #On crée toutes les tables de la base de données
     print(f"Emplacement : {app_settings.DATABASE_URL}") #le 'f' avant les guillemets permet d'utiliser {}, DATABASE_URL correspond au chemin définit dans config.py
 
     #Si pas de dossier data, on le crée
-    db_path = Path(app_settings.DATABASE_URL.replace("sqlite:///", "")) #Donne ./data/ledgerone.db
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db_url = app_settings.DATABASE_URL
+    if db_url.startswith("sqlite:///"):
+        db_path = Path(db_url.replace("sqlite:///", ""))
+        if not db_path.is_absolute():
+            db_path = (Path(__file__).resolve().parent.parent / db_path).resolve()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        db_path = Path("(database non SQLite)")
 
     #Crée toutes les tables
     Base.metadata.create_all(bind=engine) #Base.metadata contient definition de toutes les tables qui héritent de Base, create_all fait le SQL

@@ -6,7 +6,6 @@ Cependant, les variables dans ce fichiers servent si jamais il n'y a pas de .env
 '''
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic_settings import BaseSettings #Sert à gérer la configuration via variables d'environnements/.env par exemple
 
 #Chemin jusqu'a la racine du projet
 BASE_DIR =  Path(__file__).resolve().parent.parent.parent #3x parent pour remonter à la racine
@@ -14,7 +13,7 @@ BASE_DIR =  Path(__file__).resolve().parent.parent.parent #3x parent pour remont
 class Settings(BaseSettings): #Hérite de BaseSettings (Pydantic)
     DATABASE_URL: str = f"sqlite:///{BASE_DIR}/data/ledgerone.db" #Chemin vers la BDD
     DEBUG: bool = True #Debug On/Off, en prod penser à mettre False
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8080", "http://127.0.0.1:8080"] #CROS, autorise front à communiquer avec l'api
+    ALLOWED_ORIGINS: list[str] = ["*"] # CORS configurable via .env
 
     #Config de l'API
     API_PREFIX: str = "/api"

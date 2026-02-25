@@ -118,6 +118,23 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Environnements virtuels
+venv/
+backend/venv/
+
+# Fichiers Python
+__pycache__/
+*.pyc
+
+# Environnements
+.env
+
+# Base de données
+*.db
+
+# Fichiers CSV générés
+backend/tests/*.csv
+
 # ===========================
 # Base de données
 # ===========================

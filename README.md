@@ -1,92 +1,104 @@
-# LedgerOne - Gestionnaire de Dépenses Personnelles
+# 💰 LedgerOne – Personal Finance Dashboard 📊
 
-Application web de gestion financière personnelle permettant de suivre, analyser et budgétiser ses dépenses au quotidien.
+LedgerOne est une application web de gestion financière destinée aux particuliers et micro-entrepreneurs.  
+Elle permet de **suivre ses dépenses**, **gérer des budgets**, **importer des données** et **analyser ses finances** à l’aide d’indicateurs clairs et interactifs 🚀
 
----
-
-## Table des matières
-
-1. [Présentation](#présentation)
-2. [Fonctionnalités](#fonctionnalités)
-3. [Architecture](#architecture)
-4. [Installation](#installation)
-5. [Lancement](#lancement)
-6. [Structure du projet](#structure-du-projet)
-7. [Documentation API](#documentation-api)
-8. [Import CSV](#import-csv)
-9. [Tests](#tests)
-10. [Technologies](#technologies)
-11. [Licence](#licence)
+Ce projet a été réalisé comme un **Proof of Concept (POC)** simulant une **mission client réelle**, avec une attention particulière portée à :
+- la qualité du code 🧑‍💻  
+- l’expérience utilisateur 🎨  
+- la robustesse et la fiabilité technique 🔐  
 
 ---
 
-## Présentation
+## ✨ Fonctionnalités principales
 
-LedgerOne est une application web complète de gestion financière développée dans le cadre d'un test technique pour JEECE. Elle offre une interface moderne et intuitive pour gérer ses dépenses personnelles avec un suivi budgétaire précis.
-
-### Objectifs du projet
-
-- Permettre la saisie manuelle et l'import en masse (CSV) de transactions
-- Organiser les dépenses par catégories personnalisables
-- Définir et suivre des budgets mensuels (global et par catégorie)
-- Visualiser des statistiques et tendances financières
-- Recevoir des alertes en cas de dépassement de budget
-
-### Caractéristiques techniques
-
-- Architecture 3 couches (Modèles / Services / Routes)
-- API REST complète (16 endpoints)
-- Base de données SQLite avec SQLAlchemy ORM
-- Interface web responsive en HTML/CSS/JavaScript vanilla
-- Visualisations avec Chart.js
-- 79 tests automatisés (couverture complète)
-
----
-
-## Fonctionnalités
-
-### Gestion des catégories
-
-- Création, modification et suppression de catégories
-- Attribution d'une couleur et d'un budget mensuel par catégorie
-- Visualisation des dépenses par catégorie
-- Navigation temporelle (mois actuel, 3 derniers mois, année)
-
-### Gestion des transactions
-
-- Ajout, modification et suppression de transactions
-- Recherche en temps réel par description
-- Filtrage multi-critères (catégories, dates, montants)
-- Pagination intelligente
-- Tri personnalisable
-
-### Import CSV
-
-- Import en masse de transactions via fichier CSV
-- Drag & drop ou sélection de fichier
-- Création automatique des catégories manquantes
-- Rapport détaillé (succès, échecs, erreurs)
-- Validation stricte des données
-
-### Budget et alertes
-
-- Définition d'un budget mensuel global
+### 🧾 Gestion des données
+- CRUD complet des **transactions**
+- CRUD des **catégories**
 - Budgets mensuels par catégorie
-- Alertes visuelles en cas de dépassement
-- Barre de progression en temps réel
-- Comparaison budget vs réalité
-
-### Tableaux de bord et statistiques
-
-- Indicateurs clés (total, nombre d'opérations, moyenne)
-- Graphiques interactifs (camembert, barres, lignes)
-- Top 5 des catégories les plus dépensières
-- Évolution mensuelle et tendances
-- Moyenne glissante sur 3 mois
+- Budget global configurable
 
 ---
 
-## Architecture
+### 📥 Import CSV intelligent
+- Import de fichiers CSV via **drag & drop**
+- Détection automatique du séparateur (`;` ou `,`)
+- Prévisualisation du fichier avant import
+- Validation ligne par ligne
+- Rapport détaillé :
+  - lignes importées
+  - lignes ignorées
+  - erreurs explicites
+
+---
+
+### 📊 Analyse & indicateurs financiers
+- Totaux mensuels et annuels
+- Nombre de transactions
+- Moyenne par jour
+- Répartition des dépenses par catégorie
+- Moyenne glissante (3 mois)
+- Évolution mensuelle des dépenses 📈
+- Top catégories du mois
+- Objectif d’épargne 💰
+
+---
+
+### 🚨 Budgets & alertes
+- Alertes en cas de dépassement :
+  - budget global
+  - budget par catégorie
+- Détails fournis : budget prévu, réel, écart
+
+---
+
+### 🎨 Expérience utilisateur (UX / UI)
+- Thème clair / sombre 🌙☀️ (persistant)
+- Interface responsive (desktop / mobile) 📱
+- Loader lors des appels API ⏳
+- Messages d’erreur clairs et explicites
+- Navigation fluide et intuitive
+
+---
+
+### 🔍 Recherche & filtres avancés
+- Recherche plein texte sur les transactions
+- Filtres combinables :
+  - période
+  - catégorie
+  - montant minimum / maximum
+- Pagination des résultats
+
+---
+
+### 🔐 Sécurité & robustesse
+- Validation stricte des données côté API
+- Sanitisation des entrées côté client
+- Gestion centralisée des erreurs réseau
+- Codes HTTP normalisés
+- Mode debug désactivé en production
+
+---
+
+## 🛠️ Stack technique
+
+### Backend
+- **Python 3.12**
+- **FastAPI**
+- **SQLite**
+- SQLAlchemy
+- Pydantic
+- Pytest
+
+### Frontend
+- HTML5
+- CSS3
+- JavaScript ES6+ (vanilla)
+- Chart.js
+
+---
+
+## 🧱 Architecture
 
 ### Schéma général
 ```
@@ -126,44 +138,44 @@ LedgerOne est une application web complète de gestion financière développée 
                 └───────────────────┘
 ```
 
+
 ### Architecture 3 couches
 
-**1. Couche Modèles (Models)**
-- Définition des tables SQL avec SQLAlchemy
-- Contraintes d'intégrité (UNIQUE, CHECK, FK)
-- Relations entre entités (Category ↔ Transaction)
+**1️⃣ Modèles (Models)**  
+- Définition des tables SQL
+- Contraintes d’intégrité
+- Relations entre entités
 
-**2. Couche Services (Business Logic)**
-- Logique métier et calculs
-- Validations avancées
+**2️⃣ Services (Business Logic)**  
+- Logique métier
+- Calculs financiers
 - Agrégations et statistiques
-- Gestion des erreurs
+- Gestion des règles métier
 
-**3. Couche Routes (API)**
+**3️⃣ Routes (API)**  
 - Endpoints REST
-- Validation des entrées (Pydantic)
-- Codes de statut HTTP
+- Validation Pydantic
+- Codes HTTP normalisés
 - Documentation automatique
 
 ---
 
-## Installation
+## 🚀 Installation & lancement
 
 ### Prérequis
+- Python 3.12+
+- pip
+- Navigateur web moderne
 
-- Python 3.12 ou supérieur
-- pip (gestionnaire de paquets Python)
-- Un navigateur web moderne
+---
 
-### Étapes d'installation
-
-1. Cloner le dépôt
+### 1️⃣ Cloner le projet
 ```bash
-git clone <url-du-depot>
+git clone https://github.com/TON_USERNAME/LedgerOne.git
 cd LedgerOne
 ```
 
-2. Créer un environnement virtuel (recommandé)
+2️⃣ Créer un environnement virtuel
 ```bash
 cd backend
 python -m venv venv
@@ -175,19 +187,19 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-3. Installer les dépendances
+3️⃣ Installer les dépendances
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Initialiser la base de données
+4️⃣ Initialiser la base de données
 ```bash
 python scripts/init_db.py
 ```
 
 La base de données SQLite sera créée dans `data/ledgerone.db`.
 
-5. (Optionnel) Générer des données de test
+5️⃣ (Optionnel) Générer des données de test
 ```bash
 cd scripts
 python generation_csv.py
@@ -197,7 +209,7 @@ Cela créera un fichier `transactions_generated.csv` avec 2000 transactions fict
 
 ---
 
-## Lancement
+## ▶️ Lancement
 
 ### Backend (API)
 
@@ -208,15 +220,12 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 L'API sera accessible sur `http://localhost:8000`
 
-Documentation interactive disponible sur :
+Documentation sur :
 - Swagger UI : `http://localhost:8000/docs`
 - ReDoc : `http://localhost:8000/redoc`
 
 ### Frontend
 
-Ouvrir simplement le fichier `frontend/index.html` dans un navigateur web.
-
-Ou utiliser un serveur HTTP local :
 ```bash
 cd frontend
 python -m http.server 8080

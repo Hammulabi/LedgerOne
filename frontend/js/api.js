@@ -1,175 +1,68 @@
-/**
- * api.js - Module de communication avec l'API Backend
- * Contient toutes les fonctions fetch pour interagir avec LedgerOne API
- * Base URL : http://127.0.0.1:8000/api
- */
-
-// Configuration de base
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
-/**
- * Fonction utilitaire pour gérer les erreurs HTTP
- */
-async function handleResponse(response) {
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Erreur HTTP ${response.status}`);
-    }
-    return response.json();
+function getErrorMessage(errorData, status) {
+    if (errorData?.error?.message) return errorData.error.message;
+    if (typeof errorData?.detail === 'string') return errorData.detail;
+    return `Erreur HTTP ${status}`;
 }
 
-// ============================================
-//              CATEGORIES
-// ============================================
-
-async function getAllCategories() {
-    const response = await fetch(`${API_BASE_URL}/categories/`);
-    return handleResponse(response);
-}
-
-async function getCategoryById(id) {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`);
-    return handleResponse(response);
-}
-
-async function createCategory(categoryData) {
-    const response = await fetch(`${API_BASE_URL}/categories/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData)
-    });
-    return handleResponse(response);
-}
-
-async function updateCategory(id, categoryData) {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData)
-    });
-    return handleResponse(response);
-}
-
-async function deleteCategory(id) {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
-        method: 'DELETE'
-    });
-    if (!response.ok) {
-        throw new Error(`Erreur lors de la suppression: ${response.status}`);
+async function apiRequest(path, options = {}, { showLoader = true } = {}) {
+    try {
+        if (showLoader && typeof setGlobalLoading === 'function') setGlobalLoading(true);
+        const response = await fetch(`${API_BASE_URL}${path}`, options);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(getErrorMessage(data, response.status));
+        return data;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new Error('Impossible de contacter le serveur. Vérifiez votre connexion réseau.');
+        }
+        throw error;
+    } finally {
+        if (showLoader && typeof setGlobalLoading === 'function') setGlobalLoading(false);
     }
 }
 
-// ============================================
-//              TRANSACTIONS
-// ============================================
+async function getAllCategories() { return apiRequest('/categories/'); }
+async function getCategoryById(id) { return apiRequest(`/categories/${id}`); }
+async function createCategory(categoryData) { return apiRequest('/categories/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryData) }); }
+async function updateCategory(id, categoryData) { return apiRequest(`/categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryData) }); }
+async function deleteCategory(id) { return apiRequest(`/categories/${id}`, { method: 'DELETE' }); }
 
 async function getAllTransactions(params = {}) {
-    const queryParams = new URLSearchParams();
-    
-    if (params.skip !== undefined) queryParams.append('skip', params.skip);
-    if (params.limit !== undefined) queryParams.append('limit', params.limit);
-    if (params.from_date) queryParams.append('from_date', params.from_date);
-    if (params.to_date) queryParams.append('to_date', params.to_date);
-    if (params.category_id) queryParams.append('category_id', params.category_id);
-    if (params.search) queryParams.append('search', params.search);
-    
-    const url = `${API_BASE_URL}/transactions/?${queryParams.toString()}`;
-    const response = await fetch(url);
-    return handleResponse(response);
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q.append(k, v); });
+    return apiRequest(`/transactions/?${q.toString()}`);
 }
-
-async function getTransactionById(id) {
-    const response = await fetch(`${API_BASE_URL}/transactions/${id}`);
-    return handleResponse(response);
+async function searchTransactionsAdvanced(params = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q.append(k, v); });
+    return apiRequest(`/transactions/search-advanced?${q.toString()}`);
 }
+async function getTransactionById(id) { return apiRequest(`/transactions/${id}`); }
+async function createTransaction(transactionData) { return apiRequest('/transactions/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(transactionData) }); }
+async function updateTransaction(id, transactionData) { return apiRequest(`/transactions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(transactionData) }); }
+async function deleteTransaction(id) { return apiRequest(`/transactions/${id}`, { method: 'DELETE' }); }
 
-async function createTransaction(transactionData) {
-    const response = await fetch(`${API_BASE_URL}/transactions/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transactionData)
-    });
-    return handleResponse(response);
+async function getSettings() { return apiRequest('/settings/'); }
+async function updateSettings(globalBudget) { return apiRequest('/settings/', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ global_monthly_budget: globalBudget }) }); }
+
+async function getMonthlySummary(year, month) { return apiRequest(`/insights/summary?year=${year}&month=${month}`); }
+async function getMonthlyTotal(year, month, categoryId = null) { return apiRequest(`/insights/monthly-total?year=${year}&month=${month}${categoryId ? `&category_id=${categoryId}` : ''}`); }
+async function getCategoryBreakdown(year, month) { return apiRequest(`/insights/category-breakdown?year=${year}&month=${month}`); }
+async function getAnnualExpenses(year) { return apiRequest(`/insights/annual-expenses?year=${year}`); }
+async function getMonthlyEvolution(year, month) { return apiRequest(`/insights/monthly-evolution?year=${year}&month=${month}`); }
+async function getSavingsGoal(year, month, income, goal) { return apiRequest(`/insights/savings-goal?year=${year}&month=${month}&income=${income}&goal=${goal}`); }
+
+async function getBudgetAlerts(year, month) { return apiRequest(`/alerts/?year=${year}&month=${month}`); }
+
+async function previewCSV(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiRequest('/import/preview', { method: 'POST', body: formData });
 }
-
-async function updateTransaction(id, transactionData) {
-    const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transactionData)
-    });
-    return handleResponse(response);
-}
-
-async function deleteTransaction(id) {
-    const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
-        method: 'DELETE'
-    });
-    if (!response.ok) {
-        throw new Error(`Erreur lors de la suppression: ${response.status}`);
-    }
-}
-
-// ============================================
-//              SETTINGS
-// ============================================
-
-async function getSettings() {
-    const response = await fetch(`${API_BASE_URL}/settings/`);
-    return handleResponse(response);
-}
-
-async function updateSettings(globalBudget) {
-    const response = await fetch(`${API_BASE_URL}/settings/`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ global_monthly_budget: globalBudget })
-    });
-    return handleResponse(response);
-}
-
-// ============================================
-//              INSIGHTS
-// ============================================
-
-async function getMonthlySummary(year, month) {
-    const response = await fetch(`${API_BASE_URL}/insights/summary?year=${year}&month=${month}`);
-    return handleResponse(response);
-}
-
-async function getMonthlyTotal(year, month, categoryId = null) {
-    let url = `${API_BASE_URL}/insights/monthly-total?year=${year}&month=${month}`;
-    if (categoryId) url += `&category_id=${categoryId}`;
-    
-    const response = await fetch(url);
-    return handleResponse(response);
-}
-
-async function getCategoryBreakdown(year, month) {
-    const response = await fetch(`${API_BASE_URL}/insights/category-breakdown?year=${year}&month=${month}`);
-    return handleResponse(response);
-}
-
-// ============================================
-//              ALERTS
-// ============================================
-
-async function getBudgetAlerts(year, month) {
-    const response = await fetch(`${API_BASE_URL}/alerts/?year=${year}&month=${month}`);
-    return handleResponse(response);
-}
-
-// ============================================
-//              IMPORT CSV
-// ============================================
-
 async function importCSV(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
-    const response = await fetch(`${API_BASE_URL}/import/csv`, {
-        method: 'POST',
-        body: formData
-    });
-    return handleResponse(response);
+    return apiRequest('/import/csv', { method: 'POST', body: formData });
 }

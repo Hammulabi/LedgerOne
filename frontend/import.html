@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var key = 'ledgerone-theme';
+            var saved = localStorage.getItem(key);
+            var theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <title>LedgerOne - Importation CSV</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/sidebar-loader.js"></script>
@@ -16,6 +24,7 @@
                 <h1 class="page-title">Importation CSV</h1>
                 <p class="page-subtitle">Importer vos transactions en masse depuis un fichier CSV</p>
             </div>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème" title="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
         </header>
 
         <!-- Upload Zone -->

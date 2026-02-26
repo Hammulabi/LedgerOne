@@ -4,6 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var key = 'ledgerone-theme';
+            var saved = localStorage.getItem(key);
+            var theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <title>LedgerOne - Dépenses Globales</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -18,7 +26,7 @@
                 <h1 class="page-title">Dépenses Globales</h1>
                 <p class="page-subtitle">Aperçu de vos dépenses et statistiques financières</p>
             </div>
-            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème" title="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
         </header>
 
         <!-- KPI Cards -->

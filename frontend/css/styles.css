@@ -138,11 +138,16 @@ a { color: inherit; }
 }
 
 .page-title {
-  font-size: 1.85rem;
+  font-size: 3rem;
   letter-spacing: -0.02em;
   margin-bottom: 0.2rem;
-}
 
+  /* Rouge stylé en dégradé */
+  background: linear-gradient(90deg, #ff3b3b, #b30000);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 .page-subtitle { color: var(--muted); font-size: 0.95rem; }
 
 .theme-toggle {

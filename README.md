@@ -396,4 +396,5 @@ Lancez les tests depuis `backend/` avec `python -m pytest ...` au lieu de `pytes
 
 ## Licence
 
-Projet pédagogique / POC. Adaptez la licence selon votre contexte d'usage.
+Ce projet a été développé dans le cadre d'un test technique pour JEECE (Junior-Entreprise de l'ECE).
+Pour toute question ou remarque concernant ce projet, vous pouvez me contacter

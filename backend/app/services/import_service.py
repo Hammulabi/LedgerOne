@@ -149,9 +149,10 @@ def import_transactions_from_csv(db:Session, file) -> Dict[str, Any]:
         errors.extend(parse_errors)
 
         if not rows:
+            skipped_count = 1 if errors else 0
             return {
                 "inserted": 0,
-                "skipped": 0,
+                "skipped": skipped_count,
                 "errors": errors or ["Le fichier CSV est vide ou mal formaté"]
             }
         

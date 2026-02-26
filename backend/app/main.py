@@ -27,7 +27,18 @@ app.add_middleware(
 
 
 def normalize_error(code: str, message: str, details=None):
-    return {"error": {"code": code, "message": message, "details": details}}
+    """Retourne un format d'erreur normalisé, compatible avec FastAPI.
+
+    Le champ ``detail`` est conservé au niveau racine pour assurer la
+    rétrocompatibilité avec les clients/tests qui lisent ``response["detail"]``.
+    """
+    payload = {
+        "detail": message,
+        "error": {"code": code, "message": message, "details": details},
+    }
+    if details is not None:
+        payload["details"] = details
+    return payload
 
 
 @app.exception_handler(HTTPException)

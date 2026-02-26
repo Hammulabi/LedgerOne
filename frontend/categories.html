@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var key = 'ledgerone-theme';
+            var saved = localStorage.getItem(key);
+            var theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <title>LedgerOne - Catégories</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/sidebar-loader.js"></script>
@@ -10,6 +18,15 @@
 <body>
     <!-- MAIN CONTENT -->
     <main class="main-content">
+        <!-- Header -->
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Catégories</h1>
+                <p class="page-subtitle">Analysez et gérez vos catégories de dépenses</p>
+            </div>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème" title="Basculer le thème"><span id="theme-toggle-label">🌙</span></button>
+        </header>
+
         <!-- Month Navigation -->
         <div class="month-navigation">
             <div class="month-selector">
@@ -108,6 +125,7 @@
     </main>
 
     <!-- Scripts -->
+    <script src="js/theme.js"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/categories.js"></script>

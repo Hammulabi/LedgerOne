@@ -193,7 +193,6 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Backend disponible sur :
 - API root: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
 
 ### 5.2 Lancer le frontend (mode statique)
 

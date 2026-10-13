@@ -1,5 +1,7 @@
 # LedgerOne — Dashboard de gestion financière personnelle
 
+[![Backend CI](https://github.com/Hammulabi/LedgerOne/actions/workflows/backend-ci.yml/badge.svg?branch=main)](https://github.com/Hammulabi/LedgerOne/actions/workflows/backend-ci.yml)
+
 LedgerOne est une application web full-stack pour suivre ses dépenses, organiser ses catégories, gérer des budgets et analyser ses finances avec des indicateurs visuels.
 
 Le projet repose sur :
@@ -348,28 +350,25 @@ Le fichier principal de style est `frontend/css/styles.css`.
 
 ## 10. Tests et qualité
 
-### Lancer les tests backend
+Les tests backend et les contrôles de style sont exécutés automatiquement par [GitHub Actions](https://github.com/Hammulabi/LedgerOne/actions/workflows/backend-ci.yml) à chaque push sur `main` et pour les pull requests vers `main`.
 
-Depuis `backend/` :
+Depuis le dossier `backend/` :
 
-```bash
-python -m pytest tests/ -q
-```
-
-### Commandes Makefile utiles
-
-Depuis `backend/` :
+### Tests et couverture
 
 ```bash
-make install      # Installe les dépendances
-make run-backend  # Lance FastAPI
-make run-frontend # Lance frontend statique (depuis ../frontend)
-make init-db      # Initialise la DB
-make reset-db     # Réinitialise la DB
-make test         # Lance les tests avec couverture
-make lint         # flake8 + black --check + isort --check
-make format       # black + isort
+python -m pytest tests/ -q --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
 ```
+
+### Lint et formatage
+
+```bash
+python -m flake8 app tests --max-line-length=120 --extend-ignore=E203,W503
+python -m black --check app tests
+python -m isort --check-only app tests
+```
+
+Les outils de test et de qualité (`pytest`, `pytest-cov`, `flake8`, `black`, `isort`) sont installés avec `python -m pip install -r requirements.txt`.
 
 ---
 
